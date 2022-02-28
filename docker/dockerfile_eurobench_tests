@@ -1,0 +1,22 @@
+FROM registry.gitlab.com/pal-robotics-public/reem-c-simulation:latest
+SHELL ["/bin/bash", "-c"]
+#Create an overlay Catkin workspace
+
+RUN echo "source /opt/ros/melodic/setup.bash" >> ~/.bashrc
+RUN source /opt/ros/melodic/setup.bash \
+    && mkdir -p /catkin_ws/src \
+    && cd /catkin_ws \
+    && catkin_init_workspace
+
+COPY ./zmp_controller/ /catkin_ws/src/zmp_controller/ 
+ 
+RUN source /opt/ros/melodic/setup.bash \
+&& source /opt/pal/ferrum/setup.bash \
+&& cd /catkin_ws \
+&& catkin build -j4 --cmake-args -DCMAKE_CXX_FLAGS="-w"
+
+RUN echo "source /catkin_ws/devel/setup.bash" >> ~/.bashrc
+# WORKDIR /catkin_ws
+# COPY ./docker/entrypoint.sh /
+# ENTRYPOINT ["entrypoint.sh"]
+
