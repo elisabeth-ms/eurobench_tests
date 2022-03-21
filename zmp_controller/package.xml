@@ -9,6 +9,8 @@
 
   <depend>roscpp</depend>
   <depend>sensor_msgs</depend>
+  <depend>message_filters</depend>
+  <depend>geometry_msgs</depend>
 
 
   <buildtool_depend>catkin</buildtool_depend>
