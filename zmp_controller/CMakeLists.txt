@@ -7,7 +7,14 @@ project(zmp_controller)
 find_package(catkin REQUIRED COMPONENTS 
     roscpp 
     sensor_msgs
-    message_filters)
+    message_filters
+    genmsg
+    tf2
+    tf2_ros
+    trajectory_msgs
+    control_msgs
+    actionlib
+    )
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -23,8 +30,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-   CATKIN_DEPENDS message_filters
-   DEPENDS
+   CATKIN_DEPENDS message_filters tf2 tf2_ros
+   DEPENDS 
 )
 
 
@@ -49,8 +56,8 @@ include_directories(
 add_executable(
     zmp_controller_node src/zmp_controller.cpp
 )
-
-## Specify libraries to link a library or executable target against
 target_link_libraries(zmp_controller_node
     ${catkin_LIBRARIES} 
 )
+add_dependencies(zmp_controller_node ${catkin_EXPORTED_TARGETS})
+## Specify libraries to link a library or executable target against

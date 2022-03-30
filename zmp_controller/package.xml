@@ -11,8 +11,13 @@
   <depend>sensor_msgs</depend>
   <depend>message_filters</depend>
   <depend>geometry_msgs</depend>
-
-
+  <depend>genmsg</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>trajectory_msgs</depend>
+  <depend>control_msgs</depend>
+  <depend>actionlib</depend>
   <buildtool_depend>catkin</buildtool_depend>
 
 </package>
