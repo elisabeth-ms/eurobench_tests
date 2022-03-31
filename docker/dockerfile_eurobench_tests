@@ -8,19 +8,26 @@ RUN source /opt/ros/melodic/setup.bash \
     && cd /catkin_ws \
     && catkin_init_workspace
 
-COPY ./zmp_controller/ /catkin_ws/src/zmp_controller/ 
- 
+# COPY ./zmp_controller/ /catkin_ws/src/zmp_controller/ 
+
 RUN source /opt/ros/melodic/setup.bash \
 && source /opt/pal/ferrum/setup.bash \
 && cd /catkin_ws \
-&& catkin build -j4 --cmake-args -DCMAKE_CXX_FLAGS="-w"
+&& catkin build -j$(nproc) --cmake-args -DCMAKE_CXX_FLAGS="-w"
 
 RUN sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list' \
     && sudo apt install curl \
     && curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add - \
     && sudo apt update \
-    && sudo apt -y install ros-melodic-plotjuggler-ros
-    && sudo apt -y install ros-melodic-rqt-joint-trajectory-controller
+    && sudo apt -y install ros-melodic-plotjuggler-ros \
+    && sudo apt -y install ros-melodic-rqt-joint-trajectory-controller 
+
+RUN cd /catkin_ws/src \
+    && git clone https://github.com/eurobench/eurobench_simulated_pendulum \
+    && git clone https://github.com/eurobench/eurobench_models \
+    && cd /catkin_ws \
+    && catkin build -j4 --cmake-args -DCMAKE_CXX_FLAGS="-w"
+    
 RUN echo "source /catkin_ws/devel/setup.bash" >> ~/.bashrc
 # WORKDIR /catkin_ws
 # COPY ./docker/entrypoint.sh /

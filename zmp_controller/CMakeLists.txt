@@ -9,7 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
     sensor_msgs
     message_filters
     genmsg
-    tf2
+    tf
     tf2_ros
     trajectory_msgs
     control_msgs
