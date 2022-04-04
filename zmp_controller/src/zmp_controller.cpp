@@ -5,6 +5,7 @@
 #include <geometry_msgs/PointStamped.h>
 #include "geometry_msgs/Point.h"
 #include <stdio.h>
+#include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <trajectory_msgs/JointTrajectory.h>
@@ -22,7 +23,7 @@ typedef actionlib::SimpleActionClient< control_msgs::FollowJointTrajectoryAction
 class ZMPController{
   private:
     ros::NodeHandle m_nh;
-
+  
     ros::Publisher m_zmp_ft_sensors_pub;
     ros::Publisher m_zmp_ref_pub;
     
@@ -54,8 +55,8 @@ class ZMPController{
 
 
 
-    tf2_ros::Buffer m_tfBuffer;
-    tf2_ros::TransformListener * m_tfListener= new tf2_ros::TransformListener(m_tfBuffer);
+    tf2_ros::Buffer * m_tfBuffer = new tf2_ros::Buffer();
+    tf2_ros::TransformListener * m_tfListener= new tf2_ros::TransformListener(*m_tfBuffer);
   
     double m_zmp_ref_x;
     uint m_step;
@@ -63,6 +64,8 @@ class ZMPController{
     double m_pendulum_longitude;
     double m_sum_x_ft;
     double m_offs_x_ft;
+
+    bool m_command_ankles = true;
 
     void addToCsvFile();
     void configCsvFile(std::string pathCsvFile);
@@ -115,7 +118,15 @@ ZMPController::ZMPController(ros::NodeHandle *nh, std::string pathCsvFile){
   m_zmp_left_ft_pub =  m_nh.advertise<geometry_msgs::PointStamped>("/zmp_left_ft_sensors", 10);
   m_zmp_right_ft_pub =  m_nh.advertise<geometry_msgs::PointStamped>("/zmp_right_ft_sensors", 10);
 
+  if(m_nh.hasParam("/zmp_controller_node/command_ankles"))
+  {
+    ros::param::get("/zmp_controller_node/command_ankles", m_command_ankles);
+    ROS_INFO("/command_ankles set to %d", m_command_ankles);
 
+  }
+  else{
+    ros::shutdown();
+  }
   ROS_INFO("Done with status OK!");
   m_time   = ros::Time::now();
   getPendulumLongitude();
@@ -205,24 +216,27 @@ void ZMPController::ftCallback(const geometry_msgs::WrenchStampedConstPtr& left_
     
     ROS_INFO("Time between steps: %f", (m_time-m_prev_time).toSec());
     
-    m_zmp_ref_x = computeZmpRef(300, 305, 0.05);
+    if(m_command_ankles){
+      m_zmp_ref_x = computeZmpRef(300, 305, 0.05);
 
 
-    computeAngRef();
+      computeAngRef();
 
-    commandAnkleAngle();
-
+      commandAnkleAngle();
+      zmp_ref.point.x = m_zmp_ref_x;
+      zmp_ref.point.z = -m_pendulum_longitude;
+      m_zmp_ref_pub.publish(zmp_ref);
+    }
 
     zmp.point = m_zmp;
     zmp.point.z = -m_pendulum_longitude;
-    zmp_ref.point.x = m_zmp_ref_x;
-    zmp_ref.point.z = -m_pendulum_longitude;
+
     zmp_left_ft.point = m_zmp_left;
     zmp_left_ft.point.z = -m_pendulum_longitude;
     zmp_right_ft.point = m_zmp_right;
     zmp_right_ft.point.z = -m_pendulum_longitude;
     
-    m_zmp_ref_pub.publish(zmp_ref);
+
     m_zmp_ft_sensors_pub.publish(zmp);
     m_zmp_left_ft_pub.publish(zmp_left_ft);
     m_zmp_right_ft_pub.publish(zmp_right_ft);
@@ -230,11 +244,18 @@ void ZMPController::ftCallback(const geometry_msgs::WrenchStampedConstPtr& left_
     m_step++;
     addToCsvFile();
 
-    if(m_step >1500){
-      fclose(m_pFile);
-      fclose(m_pFile);
-      ros::shutdown();
+    if(m_command_ankles){
+      if(m_step >1500){
+        fclose(m_pFile);
+        fclose(m_pFile);
+        ros::shutdown();
+      }
     }
+    if(!m_nh.ok()){
+      fclose(m_pFile);
+    }
+
+
   }
 
 }
@@ -242,7 +263,7 @@ void ZMPController::getPendulumLongitude(){
   
  geometry_msgs::TransformStamped transformStamped;
   try{
-    transformStamped = m_tfBuffer.lookupTransform("right_sole_link", "base_link", ros::Time(0), ros::Duration(10.0));
+    transformStamped = m_tfBuffer->lookupTransform("right_sole_link", "base_link", ros::Time(0), ros::Duration(10.0));
   }
   catch (tf2::TransformException &ex) {
       ROS_WARN("%s",ex.what());
@@ -285,7 +306,7 @@ void ZMPController::FillGoalMessage(control_msgs::FollowJointTrajectoryGoal &goa
   }
   // To be reached 1 second after starting along the trajectory
   goal.trajectory.points[0].time_from_start = ros::Duration(1/RATE);
-
+  
 }
 
 void ZMPController::commandAnkleAngle(){
@@ -296,6 +317,7 @@ void ZMPController::commandAnkleAngle(){
 
   m_traj_client_left_leg->sendGoal(m_goal_left_leg);
   m_traj_client_right_leg->sendGoal(m_goal_right_leg);
+  
 
 
 }
@@ -323,7 +345,7 @@ void ZMPController::computeAngRef(){
   m_ang_ref = -asin(m_zmp_ref_x/m_pendulum_longitude);
   ROS_INFO("step: %d zmp_ref: %f angle_ref: %f",m_step, m_zmp_ref_x, m_ang_ref);
 
-
+  
 }
 
 int main(int argc, char **argv)
@@ -331,8 +353,9 @@ int main(int argc, char **argv)
     // Initialize ROS node
     ros::init(argc, argv, "zmp_controller_node");
     ros::NodeHandle nh;
-    std::string nameCsvFile = "/catkin_ws/test1.csv";
-
+    std::string nameCsvFile = "/home/user/catkin_ws/test1.csv";
+    // -----------------------------------------------------------------------------------------------------------------------------------
+    // TODO: ADD A VARIABLE TO HAVE TWO MODES ONE THAT GATHERS THE ZMP DIRECTLY AND ONE THAT CONTROLS THE ANKLE JOINTS AND COMPUTES THE ZMP
 
     //  geometry_msgs::TransformStamped transformStamped;
     // try{
