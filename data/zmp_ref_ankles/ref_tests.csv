@@ -1,0 +1,9 @@
+test_file,Zmp_reference_[m],Starting_Row_Zmp_Reference,period_[ms],Duration_Step_rows,Column_zmp_ref,Column_zmp_sensors
+test1.csv,0.01,102,20.0,30,zmp_ref,Xzmp_ft
+test2.csv,0.02,102,20.0,30,zmp_ref,Xzmp_ft
+test3.csv,0.03,102,20.0,30,zmp_ref,Xzmp_ft
+test4.csv,0.04,102,20.0,30,zmp_ref,Xzmp_ft
+test5.csv,0.05,102,20.0,30,zmp_ref,Xzmp_ft
+test6.csv,0.06,102,20.0,30,zmp_ref,Xzmp_ft
+test7.csv,0.07,102,20.0,30,zmp_ref,Xzmp_ft
+test8.csv,0.08,102,20.0,30,zmp_ref,Xzmp_ft
