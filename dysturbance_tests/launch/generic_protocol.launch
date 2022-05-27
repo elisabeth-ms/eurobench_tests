@@ -20,6 +20,9 @@
     <node name="dysturbance_test_reemc_gazebo" pkg="dysturbance_tests" type="dysturbance_test_reemc_gazebo.py"
           respawn="false" output="screen" required="true"/>
 
+    <param name="debug_acquisition" type="bool" value="false"/>
+    <!-- reset pendulum position -->
+    <param name="reset_pendulum" type="bool" value="false"/>
 
   </group>
 </launch>

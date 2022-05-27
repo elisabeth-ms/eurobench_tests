@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
     trajectory_msgs
     control_msgs
     actionlib
+    filters
     )
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -46,6 +47,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
+    include
     ${catkin_INCLUDE_DIRS}
 )
 
@@ -54,7 +56,7 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 
 add_executable(
-    zmp_controller_node src/zmp_controller.cpp
+    zmp_controller_node src/zmp_controller.cpp src/LIPM2d.cpp
 )
 target_link_libraries(zmp_controller_node
     ${catkin_LIBRARIES} 

@@ -85,6 +85,8 @@ class CoMCalculator:
             y = y/self.Mass
             z = z/self.Mass
 
+            print(z)
+
             #send CoM position to RViZ
             marker.pose.position.x = x
             marker.pose.position.y = y

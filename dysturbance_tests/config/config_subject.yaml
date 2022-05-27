@@ -1,9 +1,9 @@
 subject:
-  id: 1  # The integer unique identifier used for data storage
-  name: ""  # The identifier (e.g. name) of the subject performing the experiment
-  mass: 0.0  # The subject mass [kg]
-  height: 0.0  # The subject height [m]
-  com_height: 0.0  # The subject Center of Mass height [m]
-  base_depth: 0.0  # The subject base depth [m]
-  base_width: 0.0  # The subject base width [m]
+  id: 2  # The integer unique identifier used for data storage
+  name: "Reem-C Gazebo"  # The identifier (e.g. name) of the subject performing the experiment
+  mass: 67.295002  # The subject mass [kg]
+  height: 1.65  # The subject height [m]
+  com_height: 0.816692189441  # The subject Center of Mass height [m]
+  base_depth: 0.22  # The subject base depth [m]
+  base_width: 0.294 # The subject base width [m]
   orientation: 0.0  # The subject orientation w.r.t. the pendulum [deg]

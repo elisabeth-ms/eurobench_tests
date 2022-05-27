@@ -1,7 +1,9 @@
 <launch>
-  <arg name="record_topics" default="true" />
- <node pkg="zmp_controller" type="zmp_controller_node" name="zmp_controller_node" output="screen"/>
-  <node pkg="rosbag" type="record" name="rosbag_record_cam"
-       args="record -o /home/user/exchange/bags/bag /zmp_ref /zmp_ft_sensors /zmp_left_ft_sensors /zmp_right_ft_sensors  /left_ankle_ft /right_ankle_ft 
-          /joint_states" if="$(arg record_topics)" />
+  <arg name="record_topics" default="false" />
+ <node pkg="zmp_controller" type="zmp_controller_node" name="zmp_controller_node" args="0.03" output="screen"/>
+  <node pkg="rosbag" type="record" name="rosbag_record"
+       args="record -o /home/user/catkin_ws/src/eurobench_tests/data/zmp_ref_ankles/bags/LIPM/bag /zmp_ref /zmp_ft_sensors /zmp_left_ft_sensors /zmp_right_ft_sensors  /left_ankle_ft /right_ankle_ft 
+          /joint_states /force_x_applied /error_zmp /zmp_moving_average" if="$(arg record_topics)" />
+    <!--node pkg="comtest_tests" type="comtest_test_reemc_gazebo.py" name="comtest_test_reemc_gazebo_node" output="screen"/-->
+
 </launch>

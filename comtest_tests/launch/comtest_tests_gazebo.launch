@@ -1,0 +1,9 @@
+<launch>
+  <arg name="record_topics" default="true" />
+  <node pkg="comtest_tests" type="gazebo2tf" name="gazebo2tf_node" output="screen"/>
+  <node pkg="comtest_tests" type="com_computation.py" name="com_computation_node" output="screen"/>
+  <node pkg="comtest_tests" type="comtest_test_reemc_gazebo.py" name="comtest_test_reemc_gazebo_node" output="screen"/>
+  <node pkg="rosbag" type="record" name="rosbag_record"
+       args="record -o /home/user/catkin_ws/src/eurobench_tests/data/zmp_comtest/bags/bag /zmp_ft_sensors /zmp_left_ft_sensors /zmp_right_ft_sensors  /left_ankle_ft /right_ankle_ft 
+          /joint_states /force_x_applied /force_y_applied /com" if="$(arg record_topics)" />
+</launch>

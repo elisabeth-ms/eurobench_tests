@@ -4,5 +4,5 @@ protocol:
   notes: ""  # Some relevant notes regarding the experiment setup
   repetitions: 3  # The number of repetitions of the experiment
   parameters:
-    id: "000"  # The integer unique identifier used for data storage
-    initial_upper_position: -20.0  # The initial pendulum upper position which determines the initial energy and impact force [deg]
+    id: "008"  # The integer unique identifier used for data storage
+    initial_upper_position: -31.3  # The initial pendulum upper position which determines the initial energy and impact force [deg]

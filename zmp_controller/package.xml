@@ -18,6 +18,8 @@
   <depend>trajectory_msgs</depend>
   <depend>control_msgs</depend>
   <depend>actionlib</depend>
+  <depend>filters</depend>
+
   <buildtool_depend>catkin</buildtool_depend>
 
 </package>

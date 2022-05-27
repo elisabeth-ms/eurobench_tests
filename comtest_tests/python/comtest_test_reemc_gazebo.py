@@ -8,7 +8,7 @@ from geometry_msgs.msg import Point, Wrench
 from std_msgs.msg import Duration, Time, Float64
 import matplotlib.pylab as plt
 from std_srvs.srv import Empty, EmptyResponse
-
+import time
 
 
 class ComTest():
@@ -23,24 +23,37 @@ class ComTest():
         rospy.wait_for_service('/gazebo/apply_body_wrench')
         # self.send_force("base_link", 100.0, 100.0, 0.1)
         freq = 20.0
-        rate = rospy.Rate(freq) # 10hz
+        rate = rospy.Rate(freq) # 20hz
         t = rospy.get_time()
         force_x = 0.0
         force_y = 0.0
         self.start_time = rospy.get_time()
+
+    
+
         while not rospy.is_shutdown():
-            print("hello")
-            if(self.start):
-                if(self.firstTime):
-                    self.start_time = rospy.get_time()
-                    self.firstTime = False
-                t = rospy.get_time()
-                force_x = self.compute_force(t, 55.0, 0.8, False)
-                force_y = self.compute_force(t, 60.0, 0.5, False)
-                self.send_force("base_link", force_x, force_y, 1/freq)
+            # self.send_force("base_link", force_x, force_y, 1/freq)
+
             print("publishing fx: ",force_x, "fy: ",force_y)
             self.pub_ref_x_force.publish(force_x)
             self.pub_ref_y_force.publish(force_y)
+            force_x = 0.0
+            if(self.start):
+                force_x = 64.64501949651381
+                self.send_force("base_link", force_x, force_y, 30.0)
+                self.start = False
+            else: 
+                force_x = 0.0
+        #         if(self.firstTime):
+        #             self.start_time = rospy.get_time()
+        #             self.firstTime = False
+        #         t = rospy.get_time()
+        #         force_x = 40.0
+        #         force_y = 0.0
+        #         self.send_force("base_link", force_x, force_y, 1/freq)
+        #     print("publishing fx: ",force_x, "fy: ",force_y)
+        #     self.pub_ref_x_force.publish(force_x)
+        #     self.pub_ref_y_force.publish(force_y)
             rate.sleep()
 
     def start_forces(self, req):
