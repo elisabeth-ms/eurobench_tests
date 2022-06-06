@@ -1,7 +1,7 @@
 <launch>
-  <arg name="record_topics" default="true" />
-  <param name="command_ankles" type="bool" value="true" />
- <node pkg="zmp_controller" type="zmp_controller_node" name="zmp_controller_node" args="0.0 3" output="screen"/>
+  <arg name="record_topics" default="false" />
+  <param name="command_ankles" type="bool" value="false" />
+ <node pkg="zmp_controller" type="zmp_controller_node" name="zmp_controller_node" args="0.0 1" output="screen"/>
   <node pkg="rosbag" type="record" name="rosbag_record"
        args="record -o /home/user/catkin_ws/src/eurobench_tests/data/real_reemc/pushing_tests/bag/bag /zmp_ref /zmp_ft_sensors /zmp_left_ft_sensors /zmp_right_ft_sensors  /left_ankle_ft /right_ankle_ft 
           /joint_states" if="$(arg record_topics)" />

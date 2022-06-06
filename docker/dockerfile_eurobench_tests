@@ -8,6 +8,10 @@ RUN source /opt/ros/melodic/setup.bash \
     && cd /home/user/catkin_ws \
     && catkin_init_workspace
 
+RUN echo "export ROS_MASTER_URI=http://reemc-6c:11311" >>  ~/.bashrc
+RUN echo  "export ROS_IP=192.168.1.158" >> ~/.bashrc
+
+# ROS_IP is my ip when not running de openvpn 
 # COPY ./zmp_controller/ /catkin_ws/src/zmp_controller/ 
 
 RUN source /opt/ros/melodic/setup.bash \
@@ -29,6 +33,7 @@ RUN cd /home/user/catkin_ws/src \
     && catkin build -j4 --cmake-args -DCMAKE_CXX_FLAGS="-w"
     
 RUN echo "source /home/user/catkin_ws/devel/setup.bash" >> ~/.bashrc
+
 # WORKDIR /catkin_ws
 # COPY ./docker/entrypoint.sh /
 # ENTRYPOINT ["entrypoint.sh"]

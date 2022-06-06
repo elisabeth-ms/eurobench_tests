@@ -21,9 +21,20 @@ typedef actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>
 #define G 9.80665
 #define RATE 200.0     // Hz
 #define MASS 67.295002 // Kg
-#define MOVING_AVG_SIZE 40
+#define MOVING_AVG_SIZE 1
 float n;
-
+void jsCallback(const sensor_msgs::JointState::ConstPtr& msg)
+{
+	
+  
+		
+		/*iter = jointvelocities.find(msg->name[i]);
+		
+		if (iter != jointvelocities.end() )
+			iter->second = msg->velocity[i];*/
+	
+	//ROS_INFO("updated joint_states");
+}
 class MyMedianFilter: public filters::MedianFilter <double>
 {
 public:
@@ -48,7 +59,8 @@ private:
 
   ros::Publisher m_zmp_left_ft_pub;
   ros::Publisher m_zmp_right_ft_pub;
-
+  ros::Subscriber m_tilt_angle_sub;
+  ros::Subscriber m_sub; 
   TrajClient *m_traj_client_left_leg;
   TrajClient *m_traj_client_right_leg;
   control_msgs::FollowJointTrajectoryGoal m_goal_left_leg;
@@ -82,6 +94,7 @@ private:
 
   bool m_command_ankles = true;
   bool m_zmp_controller = true;
+  float m_tilt_angle = 0;
 
   void addToCsvFile();
   void configCsvFile(std::string pathCsvFile);
@@ -92,7 +105,7 @@ private:
   void commandAnkleAngle(double angleRightAnkle, double angleLeftAnkle);
   void FillJointNames(control_msgs::FollowJointTrajectoryGoal &goal, bool right);
   void FillGoalMessage(control_msgs::FollowJointTrajectoryGoal &goal, double ankleAngle, bool right);
-
+  void TiltAngleCallback(const std_msgs::Float32& msg);
   LIPM2d *m_evalLIPM; // Discrete-time Space State DLIPM Model evaluation
 
 public:
@@ -108,9 +121,9 @@ ZMPController::ZMPController(ros::NodeHandle *nh, std::string pathCsvFile)
   configCsvFile(m_pathCsvFile);
   m_first = true;
 
-  if (m_nh.hasParam("/zmp_controller_node/command_ankles"))
+  if (m_nh.hasParam("command_ankles"))
   {
-    ros::param::get("/zmp_controller_node/command_ankles", m_command_ankles);
+    ros::param::get("command_ankles", m_command_ankles);
     ROS_INFO("/command_ankles set to %d", m_command_ankles);
   }
   m_right_ankle_angle_pub = m_nh.advertise<std_msgs::Float32>("/force_joints/reemc_full_ft_hey5/leg_right_5_joint", 10);
@@ -122,13 +135,18 @@ ZMPController::ZMPController(ros::NodeHandle *nh, std::string pathCsvFile)
   m_zmp_ref_pub = m_nh.advertise<geometry_msgs::PointStamped>("/zmp_ref", 10);
   m_zmp_left_ft_pub = m_nh.advertise<geometry_msgs::PointStamped>("/zmp_left_ft_sensors", 10);
   m_zmp_right_ft_pub = m_nh.advertise<geometry_msgs::PointStamped>("/zmp_right_ft_sensors", 10);
-  message_filters::Subscriber<geometry_msgs::WrenchStamped> left_ankle_ft_sub(m_nh, "/left_ankle_ft", 1);
-  message_filters::Subscriber<geometry_msgs::WrenchStamped> right_ankle_ft_sub(m_nh, "/right_ankle_ft", 1);
+	ros::Subscriber sub = m_nh.subscribe("/joint_states", 50, &jsCallback);
+
+  message_filters::Subscriber<geometry_msgs::WrenchStamped> left_ankle_ft_sub(m_nh, "/left_ankle_ft", 5);
+  message_filters::Subscriber<geometry_msgs::WrenchStamped> right_ankle_ft_sub(m_nh, "/right_ankle_ft", 5);
+  
+  //m_tilt_angle_sub = m_nh.subscribe("tilt_angle", 1, boost::bind(&ZMPController::TiltAngleCallback, this, _1));
   // message_filters::Subscriber<sensor_msgs::JointState> joint_states_ft_sub(m_nh, "/joint_states", 1);
   // m_left_leg_pub = n.advertise<trajectory_msgs::JointTrajectory>("/left_leg_controller/command", 1);
   // m_right_leg_pub = n.advertise<trajectory_msgs::JointTrajectory>("/right_leg_controller/command", 1);
   int channels = 1;
   m_filter->configure(10);
+
   message_filters::TimeSynchronizer<geometry_msgs::WrenchStamped, geometry_msgs::WrenchStamped> sync_ft(left_ankle_ft_sub, right_ankle_ft_sub, 10);
   sync_ft.registerCallback(boost::bind(&ZMPController::ftCallback, this, _1, _2));
 
@@ -136,14 +154,16 @@ ZMPController::ZMPController(ros::NodeHandle *nh, std::string pathCsvFile)
   m_traj_client_left_leg = new TrajClient("/left_leg_controller/follow_joint_trajectory", true);
   m_traj_client_right_leg = new TrajClient("/right_leg_controller/follow_joint_trajectory", true);
 
-  while (!m_traj_client_left_leg->waitForServer(ros::Duration(5.0)))
-  {
-    ROS_INFO("Waiting for the /left_leg_controller/follow_joint_trajectory action server");
-  }
+  if(m_command_ankles){
+    while (!m_traj_client_left_leg->waitForServer(ros::Duration(5.0)))
+    {
+      ROS_INFO("Waiting for the /left_leg_controller/follow_joint_trajectory action server");
+    }
 
-  while (!m_traj_client_right_leg->waitForServer(ros::Duration(5.0)))
-  {
-    ROS_INFO("Waiting for the /right_leg_controller/follow_joint_trajectory action server");
+    while (!m_traj_client_right_leg->waitForServer(ros::Duration(5.0)))
+    {
+      ROS_INFO("Waiting for the /right_leg_controller/follow_joint_trajectory action server");
+    }
   }
 
   FillJointNames(m_goal_left_leg, false);
@@ -163,10 +183,15 @@ ZMPController::ZMPController(ros::NodeHandle *nh, std::string pathCsvFile)
   m_evalLIPM = new LIPM2d(m_pendulum_longitude, MASS);
   m_step = 0.0;
   m_prev_time = ros::Time::now();
+  ROS_INFO("AQUI");
+  
+
   ros::spin();
 
   // update();
 }
+
+
 
 void ZMPController::configCsvFile(std::string pathCsvFile)
 {
@@ -196,6 +221,7 @@ void ZMPController::addToCsvFile()
 
 void ZMPController::ftCallback(const geometry_msgs::WrenchStampedConstPtr &left_ft_msg, const geometry_msgs::WrenchStampedConstPtr &right_ft_msg)
 {
+
   m_time = ros::Time::now();
   
   // if(m_time-m_prev_time>=ros::Duration(1/RATE)){
@@ -316,7 +342,9 @@ void ZMPController::ftCallback(const geometry_msgs::WrenchStampedConstPtr &left_
   if (m_command_ankles && m_step >= 500)
   {
 
-    m_zmp_ref_x = computeZmpRef(500, 620, n);
+    // m_zmp_ref_x = computeZmpRef(500, 620, n);
+    m_zmp_ref_x = 0;
+
     computeAngRef();
 
     commandAnkleAngle(m_ang_ref, m_ang_ref);
@@ -344,6 +372,7 @@ void ZMPController::ftCallback(const geometry_msgs::WrenchStampedConstPtr &left_
     // }
     zmp_ref.point.x = m_zmp_ref_x;
     zmp_ref.point.z = -m_pendulum_longitude;
+
   }
 
   m_zmp_ref_pub.publish(zmp_ref);
@@ -371,9 +400,9 @@ void ZMPController::ftCallback(const geometry_msgs::WrenchStampedConstPtr &left_
     //   ros::shutdown();
     // }
   }
-  if(m_step>2500){
-    ros::shutdown();
-  }
+  // if(m_step>2500){
+  //   ros::shutdown();
+  // }
   if (!m_nh.ok())
   {
     fclose(m_pFile);
@@ -381,6 +410,13 @@ void ZMPController::ftCallback(const geometry_msgs::WrenchStampedConstPtr &left_
 
   // }
 }
+
+void ZMPController::TiltAngleCallback(const std_msgs::Float32& msg)
+{
+
+
+}
+
 void ZMPController::getPendulumLongitude()
 {
 
@@ -499,9 +535,11 @@ int main(int argc, char **argv)
   // Initialize ROS node
   ros::init(argc, argv, "zmp_controller_node");
   n = atof(argv[1]);
+  int test_id = atoi(argv[2]);
+  // bool control_joints = atoi(argv[2]);
   std::cout << n << std::endl;
   ros::NodeHandle nh;
-  std::string nameCsvFile = "/home/user/catkin_ws/src/eurobench_tests/data/zmp_ref_ankles/DLIPM/test" + std::to_string(n) + ".csv";
+  std::string nameCsvFile = "/home/user/catkin_ws/src/eurobench_tests/data/real_reemc/pushing_tests/csv/test" + std::to_string(test_id) + ".csv";
 
   // -----------------------------------------------------------------------------------------------------------------------------------
   // TODO: ADD A VARIABLE TO HAVE TWO MODES ONE THAT GATHERS THE ZMP DIRECTLY AND ONE THAT CONTROLS THE ANKLE JOINTS AND COMPUTES THE ZMP
