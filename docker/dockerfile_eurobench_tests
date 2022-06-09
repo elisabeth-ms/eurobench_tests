@@ -9,7 +9,7 @@ RUN source /opt/ros/melodic/setup.bash \
     && catkin_init_workspace
 
 RUN echo "export ROS_MASTER_URI=http://reemc-6c:11311" >>  ~/.bashrc
-RUN echo  "export ROS_IP=192.168.1.158" >> ~/.bashrc
+RUN echo  "export ROS_HOSTNAME=elisabeth-CX62-6QD" >> ~/.bashrc
 
 # ROS_IP is my ip when not running de openvpn 
 # COPY ./zmp_controller/ /catkin_ws/src/zmp_controller/ 

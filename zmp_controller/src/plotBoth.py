@@ -5,25 +5,25 @@
 # from bagpy import bagreader
 # import pandas as pd
 # import seaborn as sea
-from cProfile import label
-from tkinter import Label
+# from cProfile import label
+# from tkinter import Label
 import matplotlib.pyplot as plt
 import numpy as np
 
 import csv
 
-names = ['05', '01']
+names = ['03', '08']
 for name in names:
     n = 40
     time = []
     ref = []
     x_zmp = []
-    with open('/home/user/catkin_ws/src/eurobench_tests/data/zmp_ref_ankles/DLIPM/test0_'+name+'_'+str(n)+'.csv') as csv_file:
+    with open('/home/elisabeth/repos/eurobench_tests/data/real_reemc/ankles_commands_tests/csv/zmp_with_simulation_params/test0_'+name+'.csv') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         line_count = 0
         for row in csv_reader:
             if line_count == 0:
-                print(f'Column names are {", ".join(row)}')
+                print('Column names are ')
             else:
                 time.append(float(row[0]))
                 ref.append(float(row[10]))
@@ -36,19 +36,19 @@ for name in names:
     time.clear()
     ref.clear()
     x_zmp.clear()
-    with open('/home/user/catkin_ws/src/eurobench_tests/data/zmp_ref_ankles/DLIPM/test0_'+name+'_LIPM.csv') as csv_file:
+    with open('/home/elisabeth/repos/eurobench_tests/data/real_reemc/ankles_commands_tests/csv/zmp_refs_longer_time/test0_'+name+'.csv') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         line_count = 0
         for row in csv_reader:
             if line_count == 0:
-                print(f'Column names are {", ".join(row)}')
+                print('Column names are}')
             else:
                 time.append(float(row[0]))
                 ref.append(float(row[10]))
                 x_zmp.append(float(row[7]))
             line_count += 1
 
-    str_label = "LIPM 0." +name
+    str_label = "Original 0." +name
     plt.plot(time, x_zmp,'--', label= str_label)
 
     plt.plot(time,ref)

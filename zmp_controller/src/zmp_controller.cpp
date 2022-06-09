@@ -21,12 +21,12 @@ typedef actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>
 #define G 9.80665
 #define RATE 200.0     // Hz
 #define MASS 67.295002 // Kg
-#define MOVING_AVG_SIZE 1
+#define MOVING_AVG_SIZE 10
 float n;
 void jsCallback(const sensor_msgs::JointState::ConstPtr& msg)
 {
 	
-  
+
 		
 		/*iter = jointvelocities.find(msg->name[i]);
 		
@@ -59,12 +59,16 @@ private:
 
   ros::Publisher m_zmp_left_ft_pub;
   ros::Publisher m_zmp_right_ft_pub;
+  ros::Publisher m_left_leg_pub;
+  ros::Publisher m_right_leg_pub;
   ros::Subscriber m_tilt_angle_sub;
   ros::Subscriber m_sub; 
   TrajClient *m_traj_client_left_leg;
   TrajClient *m_traj_client_right_leg;
-  control_msgs::FollowJointTrajectoryGoal m_goal_left_leg;
-  control_msgs::FollowJointTrajectoryGoal m_goal_right_leg;
+  trajectory_msgs::JointTrajectory m_goal_left_leg;
+  trajectory_msgs::JointTrajectory m_goal_right_leg;
+  // control_msgs::FollowJointTrajectoryGoal m_goal_left_leg;
+  // control_msgs::FollowJointTrajectoryGoal m_goal_right_leg;
 
   std::string m_pathCsvFile;
   FILE *m_pFile;
@@ -103,8 +107,12 @@ private:
   void computeAngRef();
   double computeZmpRef(uint start_slope_step, uint end_slope_step, double ref_zmp_end);
   void commandAnkleAngle(double angleRightAnkle, double angleLeftAnkle);
-  void FillJointNames(control_msgs::FollowJointTrajectoryGoal &goal, bool right);
-  void FillGoalMessage(control_msgs::FollowJointTrajectoryGoal &goal, double ankleAngle, bool right);
+  // void FillJointNames(control_msgs::FollowJointTrajectoryGoal &goal, bool right);
+  void FillJointNames(trajectory_msgs::JointTrajectory &goal, bool right);
+
+  // void FillGoalMessage(control_msgs::FollowJointTrajectoryGoal &goal, double ankleAngle, bool right);
+  void FillGoalMessage(trajectory_msgs::JointTrajectory &goal, double ankleAngle, bool right);
+
   void TiltAngleCallback(const std_msgs::Float32& msg);
   LIPM2d *m_evalLIPM; // Discrete-time Space State DLIPM Model evaluation
 
@@ -141,9 +149,10 @@ ZMPController::ZMPController(ros::NodeHandle *nh, std::string pathCsvFile)
   message_filters::Subscriber<geometry_msgs::WrenchStamped> right_ankle_ft_sub(m_nh, "/right_ankle_ft", 5);
   
   //m_tilt_angle_sub = m_nh.subscribe("tilt_angle", 1, boost::bind(&ZMPController::TiltAngleCallback, this, _1));
-  // message_filters::Subscriber<sensor_msgs::JointState> joint_states_ft_sub(m_nh, "/joint_states", 1);
-  // m_left_leg_pub = n.advertise<trajectory_msgs::JointTrajectory>("/left_leg_controller/command", 1);
-  // m_right_leg_pub = n.advertise<trajectory_msgs::JointTrajectory>("/right_leg_controller/command", 1);
+  //message_filters::Subscriber<sensor_msgs::JointState> joint_states_ft_sub(m_nh, "/joint_states", 1);
+  m_left_leg_pub = m_nh.advertise<trajectory_msgs::JointTrajectory>("/left_leg_controller/command", 5);
+  m_right_leg_pub = m_nh.advertise<trajectory_msgs::JointTrajectory>("/right_leg_controller/command", 5);
+  
   int channels = 1;
   m_filter->configure(10);
 
@@ -168,7 +177,7 @@ ZMPController::ZMPController(ros::NodeHandle *nh, std::string pathCsvFile)
 
   FillJointNames(m_goal_left_leg, false);
   FillJointNames(m_goal_right_leg, true);
-  //   commandAnkleAngle(0.0);
+  commandAnkleAngle(0.0, 0.0);
   //   ROS_INFO("Command ankles to the zero position.");
   //   ROS_INFO("Waiting 5 seconds...");
   //   ros::Duration(1.0).sleep();
@@ -249,7 +258,7 @@ void ZMPController::ftCallback(const geometry_msgs::WrenchStampedConstPtr &left_
 
 
   // OFFSET FT - eliminando el offset de (ZMP de ambos sensores en X)
-  if (m_step >= 1 && m_step < 400)
+  if (m_step >= 1 && m_step < 100)
   {
     m_sum_x_ft = m_zmp.x + m_sum_x_ft;
     m_offs_x_ft = m_sum_x_ft / m_step;
@@ -259,7 +268,7 @@ void ZMPController::ftCallback(const geometry_msgs::WrenchStampedConstPtr &left_
     m_zmp_moving_average_pub.publish(moving_avg_zmp);
 
   }
-  if (m_step >= 400)
+  if (m_step >= 100)
   {
     std_msgs::Float32 moving_avg_zmp;
     m_zmp.x = m_zmp.x - m_offs_x_ft;
@@ -324,7 +333,7 @@ void ZMPController::ftCallback(const geometry_msgs::WrenchStampedConstPtr &left_
   //  }
 
   // ROS_INFO("Time between steps: %f", (m_time-m_prev_time).toSec());
-  if (m_command_ankles && m_step < 500)
+  if (m_command_ankles && m_step < 200)
   {
 
     zmp_ref.point.x = 0.0;
@@ -339,37 +348,30 @@ void ZMPController::ftCallback(const geometry_msgs::WrenchStampedConstPtr &left_
   error_zmp.data = abs(m_zmp.x - m_zmp_ref_x);
   m_error_zmp_pub.publish(error_zmp);
 
-  if (m_command_ankles && m_step >= 500)
+  if (m_command_ankles && m_step >= 200)
   {
 
-    // m_zmp_ref_x = computeZmpRef(500, 620, n);
-    m_zmp_ref_x = 0;
+    m_zmp_ref_x = computeZmpRef(200, 250, n);
+    
+    // m_zmp_ref_x = 0;
 
     computeAngRef();
 
-    commandAnkleAngle(m_ang_ref, m_ang_ref);
+    // Just for gathering data moving the ankles
+    ROS_INFO("Command ankles to: %f", m_ang_ref);
+    // commandAnkleAngle(m_ang_ref, m_ang_ref);
 
-    //   // obtaining the angle error for the D-LIPM space state
+    // obtaining the angle error for the D-LIPM space state
 
-    // // if(abs(m_zmp.x-m_zmp_ref_x)>0.001 && m_zmp_controller){
+    // This is when controlling the robot based on the zmp
+
     m_evalLIPM->model(m_moving_avg_x_zmp, m_zmp_ref_x);
-    // std::cout<<"ang ref: "<<m_evalLIPM->_ang_ref*M_PI/180.0<<"error: "<<m_evalLIPM->ang_error_out*M_PI/180.0<<std::endl;
 
     m_ang_out = m_evalLIPM->_ang_ref * M_PI / 180.0 - m_evalLIPM->ang_error_out * M_PI / 180.0;
-    // //   // computeAngRef();
-    // // std::cout<<"ang error: "<<m_evalLIPM->ang_error_out<<" "<<m_evalLIPM->ang_error_out*M_PI/180.0<<std::endl;
+    
+    commandAnkleAngle(m_ang_out, m_ang_out);
 
-    // commandAnkleAngle(m_ang_out, m_ang_out);
-    // }
-    // else if(abs(m_zmp.x-m_zmp_ref_x)<=0.001 && m_zmp_controller){
-    //     m_ang_out = m_evalLIPM->_ang_ref;
-    //     commandAnkleAngle(m_ang_out, m_ang_out);
-    //     std::cout<<"error zmp: "<<m_zmp.x-m_zmp_ref_x<<"angle error: "<<m_evalLIPM->ang_error_out<<std::endl;
-    // }
-    // else if(!m_zmp_controller){
-    //     m_ang_out = m_evalLIPM->_ang_ref;
-    //     commandAnkleAngle(m_ang_out, m_ang_out);
-    // }
+
     zmp_ref.point.x = m_zmp_ref_x;
     zmp_ref.point.z = -m_pendulum_longitude;
 
@@ -400,9 +402,10 @@ void ZMPController::ftCallback(const geometry_msgs::WrenchStampedConstPtr &left_
     //   ros::shutdown();
     // }
   }
-  // if(m_step>2500){
-  //   ros::shutdown();
-  // }
+  if(m_step>3279){
+    ros::shutdown();
+    fclose(m_pFile);
+  }
   if (!m_nh.ok())
   {
     fclose(m_pFile);
@@ -435,40 +438,41 @@ void ZMPController::getPendulumLongitude()
   ROS_INFO("Pendulum longitude: %f", m_pendulum_longitude);
 }
 
-void ZMPController::FillJointNames(control_msgs::FollowJointTrajectoryGoal &goal, bool right)
+void ZMPController::FillJointNames(trajectory_msgs::JointTrajectory &goal, bool right)
 {
-  goal.trajectory.joint_names.resize(6);
+  goal.joint_names.resize(6);
   for (uint i = 1; i <= 6; i++)
   {
     if (right)
     {
-      goal.trajectory.joint_names[i - 1] = "leg_right_" + std::to_string(i) + "_joint";
+      goal.joint_names[i - 1] = "leg_right_" + std::to_string(i) + "_joint";
     }
     else
     {
-      goal.trajectory.joint_names[i - 1] = "leg_left_" + std::to_string(i) + "_joint";
+      goal.joint_names[i - 1] = "leg_left_" + std::to_string(i) + "_joint";
     }
   }
 }
 
-void ZMPController::FillGoalMessage(control_msgs::FollowJointTrajectoryGoal &goal, double ankleAngle, bool right)
+void ZMPController::FillGoalMessage(trajectory_msgs::JointTrajectory &goal, double ankleAngle, bool right)
 {
-  goal.trajectory.header.stamp = ros::Time::now();
+  // goal.header.stamp = ros::Time::now();
 
-  goal.trajectory.points.resize(1);
-  goal.trajectory.points[0].positions.resize(6);
-  goal.trajectory.points[0].positions[0] = 0.0;
-  goal.trajectory.points[0].positions[1] = 0.0;
-  goal.trajectory.points[0].positions[2] = 0.0;
-  goal.trajectory.points[0].positions[3] = 0.0;
-  goal.trajectory.points[0].positions[4] = ankleAngle;
-  goal.trajectory.points[0].positions[5] = 0.0;
+  goal.points.resize(1);
+  goal.points[0].positions.resize(6);
+  goal.points[0].positions[0] = 0.0;
+  goal.points[0].positions[1] = 0.0;
+  goal.points[0].positions[2] = 0.0;
+  goal.points[0].positions[3] = 0.0;
+  goal.points[0].positions[4] = ankleAngle;
+  goal.points[0].positions[5] = 0.0;
+
   // Velocities
-  goal.trajectory.points[0].velocities.resize(6);
-  for (size_t j = 0; j < 6; ++j)
-  {
-    goal.trajectory.points[0].velocities[j] = 0.0; //(ankleAngle-m_prev_ankle_angle)/(1/RATE);
-  }
+  // goal.points[0].velocities.resize(6);
+  // for (size_t j = 0; j < 6; ++j)
+  // {
+  //   goal.points[0].velocities[j] = 0.0; //(ankleAngle-m_prev_ankle_angle)/(1/RATE);
+  // }
   // To be reached 1/RATE second after starting along the trajectory
 
   // goal.goal_tolerance.resize(6);
@@ -479,7 +483,7 @@ void ZMPController::FillGoalMessage(control_msgs::FollowJointTrajectoryGoal &goa
   // }
 
   // goal.goal_time_tolerance = ros::Duration(0.01);
-  // goal.trajectory.points[0].time_from_start = ros::Duration(0.0);
+  goal.points[0].time_from_start.nsec = 5;
 }
 
 void ZMPController::commandAnkleAngle(double angleRightAnkle, double angleLeftAnkle)
@@ -494,11 +498,13 @@ void ZMPController::commandAnkleAngle(double angleRightAnkle, double angleLeftAn
   FillGoalMessage(m_goal_left_leg, angleLeftAnkle, false);
   FillGoalMessage(m_goal_right_leg, angleRightAnkle, true);
 
-  m_goal_left_leg.trajectory.points[0].time_from_start = ros::Duration(1/RATE);
-  m_goal_right_leg.trajectory.points[0].time_from_start = ros::Duration(1/RATE);
+  m_left_leg_pub.publish(m_goal_left_leg);
+  m_right_leg_pub.publish(m_goal_right_leg);
+  // m_goal_left_leg.trajectory.points[0].time_from_start = ros::Duration(1/RATE);
+  // m_goal_right_leg.trajectory.points[0].time_from_start = ros::Duration(1/RATE);
 
-  m_traj_client_left_leg->sendGoal(m_goal_left_leg);
-  m_traj_client_right_leg->sendGoal(m_goal_right_leg);
+  // m_traj_client_left_leg->sendGoal(m_goal_left_leg);
+  // m_traj_client_right_leg->sendGoal(m_goal_right_leg);
 }
 
 double ZMPController::computeZmpRef(uint start_slope_step, uint end_slope_step, double ref_zmp_end)
@@ -522,9 +528,9 @@ void ZMPController::computeAngRef()
 {
 
   m_prev_ankle_angle = m_ang_ref;
-  float ka = 0.25 * m_zmp_ref_x + 0.10;
+  // float ka = 0.25 * m_zmp_ref_x + 0.10;
 
-  // float ka = 0.25 * m_zmp_ref_x + 9.95;
+  float ka = 0.25 * m_zmp_ref_x + 9.95;
   // m_ang_ref = -(m_zmp_ref_x*(-G))/ (m_pendulum_longitude*(ka-G));
   m_ang_ref = -m_zmp_ref_x / m_pendulum_longitude;
   ROS_INFO("step: %d zmp_ref: %f angle_ref: %f", m_step, m_zmp_ref_x, m_ang_ref);
@@ -539,7 +545,7 @@ int main(int argc, char **argv)
   // bool control_joints = atoi(argv[2]);
   std::cout << n << std::endl;
   ros::NodeHandle nh;
-  std::string nameCsvFile = "/home/user/catkin_ws/src/eurobench_tests/data/real_reemc/pushing_tests/csv/test" + std::to_string(test_id) + ".csv";
+  std::string nameCsvFile = "/home/user/catkin_ws/src/eurobench_tests/data/real_reemc/ankles_commands_tests/csv/test" + std::to_string(test_id) + ".csv";
 
   // -----------------------------------------------------------------------------------------------------------------------------------
   // TODO: ADD A VARIABLE TO HAVE TWO MODES ONE THAT GATHERS THE ZMP DIRECTLY AND ONE THAT CONTROLS THE ANKLE JOINTS AND COMPUTES THE ZMP
